@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>HP Webcam</title>
+<title>HP Webcam (LAN Forced)</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
 <style>
   :root {
@@ -114,14 +114,14 @@ const PREFIX = 'hpcam-';
 const RES = { '480':[640,480], '720':[1280,720], '1080':[1920,1080] };
 const BITRATE = { '480':1500000, '720':3500000, '1080':7000000 };
 
-// Konfigurasi STUN lokal-friendly untuk menembus mDNS browser
+// Pengaturan WebRTC untuk memprioritaskan IP Lokal
 const LAN_PEER_CONFIG = {
   config: {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
+      { urls: 'stun:stun.l.google.com:19302' }
     ],
-    iceTransportPolicy: 'all'
+    iceCandidatePoolSize: 10,
+    sdpSemantics: 'unified-plan'
   }
 };
 
@@ -264,7 +264,7 @@ function scheduleRetry(msg) {
 function startView(raw) {
   $('#viewErr').textContent = '';
   const code = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (code.length !== 5) { $('#viewErr').textContent = 'Kode harus 5 karakter.'; return; }
+  if (code.length !== 5) { $('#viewErr').textContent = 'Kode mebutuhkan 5 karakter.'; return; }
   if (!window.Peer) { $('#viewErr').textContent = 'Library PeerJS gagal dimuat.'; return; }
   viewCode = code; viewActive = true;
   $('#codeIn').value = code;
@@ -310,6 +310,7 @@ function startStats(pc) {
     if (pc.connectionState !== 'connected') return;
     const st = await pc.getStats(); let res = '', fps = '', rtt = '', path = '';
     const byId = {}; st.forEach((r) => (byId[r.id] = r));
+    
     st.forEach((r) => {
       if (r.type === 'inbound-rtp' && r.kind === 'video') {
         if (r.frameWidth) res = r.frameWidth + '×' + r.frameHeight;
@@ -319,8 +320,12 @@ function startStats(pc) {
         if (r.currentRoundTripTime != null) rtt = 'RTT ' + Math.round(r.currentRoundTripTime * 1000) + ' ms';
         const l = byId[r.localCandidateId], rm = byId[r.remoteCandidateId];
         if (l && rm) {
-          const t = [l.candidateType, rm.candidateType];
-          path = t.includes('relay') ? 'Jalur: relay (via internet)' : t.every((x) => x === 'host' || x === 'prflx') ? 'Jalur: LAN langsung' : 'Jalur: internet langsung';
+          const isLocal = (c) => c && (c.candidateType === 'host' || (c.ip && (c.ip.startsWith('192.168.') || c.ip.startsWith('10.') || c.ip.startsWith('172.'))));
+          if (isLocal(l) && isLocal(rm)) {
+            path = 'Jalur: LAN langsung (Wi-Fi Local)';
+          } else {
+            path = 'Jalur: internet langsung';
+          }
         }
       }
     });
