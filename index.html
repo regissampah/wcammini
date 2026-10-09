@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>HP Webcam</title>
+<title>HP Webcam (Full LAN)</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
 <style>
   :root {
@@ -44,7 +44,7 @@
 </head>
 <body>
 <main>
-  <h1>📱 HP Webcam</h1>
+  <h1>📱 HP Webcam (LAN)</h1>
   <p class="sub">Jadikan HP sebagai webcam. Cukup masukkan kode 5 karakter untuk memantau di browser lain.</p>
 
   <!-- MENU -->
@@ -106,14 +106,21 @@
   </section>
 </main>
 
-<!-- Menggunakan file lokal di folder yang sama -->
 <script src="peerjs.min.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // tanpa I, O, 0, 1 agar tidak membingungkan
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const PREFIX = 'hpcam-';
 const RES = { '480':[640,480], '720':[1280,720], '1080':[1920,1080] };
 const BITRATE = { '480':1500000, '720':3500000, '1080':7000000 };
+
+// Konfigurasi khusus: Mengosongkan STUN/TURN publik agar dipaksa lewat IP Lokal (Wi-Fi)
+const LAN_PEER_CONFIG = {
+  config: {
+    iceServers: [], // Kosongkan STUN server luar agar tidak mencari jalur internet/relay
+    iceTransportPolicy: 'all'
+  }
+};
 
 let peer = null, stream = null, wakeLock = null, facing = 'environment';
 let camActive = false, viewActive = false, viewCode = '', retryTimer = null, statsTimer = null, currentCall = null;
@@ -157,11 +164,11 @@ function getMedia(audio) {
 }
 function updateCount() {
   const n = calls.size;
-  setStatus('cam', n ? `Streaming ke ${n} penonton` : 'Menunggu penonton…', n > 0);
+  setStatus('cam', n ? `Streaming ke ${n} penonton (LAN)` : 'Menunggu penonton…', n > 0);
 }
 function openCamPeer() {
   const code = genCode();
-  peer = new Peer(PREFIX + code);
+  peer = new Peer(PREFIX + code, LAN_PEER_CONFIG);
   peer.on('open', () => {
     $('#codeShow').textContent = code;
     $('#camStep1').hidden = true; $('#camStep2').hidden = false;
@@ -169,14 +176,14 @@ function openCamPeer() {
     updateCount();
   });
   peer.on('error', (e) => {
-    if (e.type === 'unavailable-id') { peer.destroy(); openCamPeer(); return; }   // kode bentrok → buat ulang
+    if (e.type === 'unavailable-id') { peer.destroy(); openCamPeer(); return; }
     if (['network','server-error','socket-error','socket-closed'].includes(e.type))
-      $('#camErr').textContent = 'Tidak bisa menghubungi server pairing. Cek koneksi internet.';
+      $('#camErr').textContent = 'Tidak bisa menghubungi server pairing.';
     else $('#camErr').textContent = 'Error: ' + e.type;
   });
   peer.on('disconnected', () => {
     if (!camActive) return;
-    setStatus('cam', 'Menyambung ulang ke server…', false);
+    setStatus('cam', 'Menyambung ulang…', false);
     setTimeout(() => { if (camActive && peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 1500);
   });
   peer.on('connection', (conn) => {
@@ -184,6 +191,7 @@ function openCamPeer() {
       const call = peer.call(conn.peer, stream);
       calls.add(call); updateCount();
       const pc = call.peerConnection;
+      
       pc.addEventListener('connectionstatechange', () => {
         if (pc.connectionState === 'connected') {
           pc.getSenders().filter((s) => s.track && s.track.kind === 'video').forEach((s) => {
@@ -203,7 +211,7 @@ function openCamPeer() {
 }
 $('#startCam').onclick = async () => {
   $('#camErr').textContent = '';
-  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS gagal dimuat. Pastikan file peerjs.min.js ada di folder yang sama.'; return; }
+  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS gagal dimuat. Pastikan file peerjs.min.js ada.'; return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('#camErr').textContent = 'Kamera tidak tersedia. Buka halaman lewat https://.'; return;
   }
@@ -254,13 +262,13 @@ function startView(raw) {
   $('#viewErr').textContent = '';
   const code = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 5) { $('#viewErr').textContent = 'Kode harus 5 karakter.'; return; }
-  if (!window.Peer) { $('#viewErr').textContent = 'Library PeerJS gagal dimuat. Pastikan file peerjs.min.js ada di folder yang sama.'; return; }
+  if (!window.Peer) { $('#viewErr').textContent = 'Library PeerJS gagal dimuat.'; return; }
   viewCode = code; viewActive = true;
   $('#codeIn').value = code;
   stopViewerPeer();
   setStatus('view', 'Menghubungkan…', false);
 
-  peer = new Peer();
+  peer = new Peer(LAN_PEER_CONFIG);
   peer.on('open', () => {
     const conn = peer.connect(PREFIX + code, { reliable: true });
     const to = setTimeout(() => { if (!conn.open) scheduleRetry('Webcam belum merespons, mencoba lagi…'); }, 10000);
@@ -269,14 +277,14 @@ function startView(raw) {
   });
   peer.on('call', (call) => {
     currentCall = call;
-    call.answer();   // hanya menerima, tidak mengirim video
+    call.answer();
     call.on('stream', (s) => {
       const v = $('#remote');
       if (v.srcObject !== s) v.srcObject = s;
       $('#overlay').hidden = true;
-      setStatus('view', 'Live', true);
+      setStatus('view', 'Live (LAN Direct)', true);
       call.peerConnection.getReceivers().forEach((r) => {
-        try { r.jitterBufferTarget = 0; } catch {}      // latensi serendah mungkin
+        try { r.jitterBufferTarget = 0; } catch {}
         try { r.playoutDelayHint = 0; } catch {}
       });
       startStats(call.peerConnection);
@@ -284,7 +292,7 @@ function startView(raw) {
   });
   peer.on('error', (e) => {
     if (e.type === 'peer-unavailable') {
-      $('#viewErr').textContent = 'Kode tidak ditemukan. Pastikan kode benar dan webcam sudah aktif.';
+      $('#viewErr').textContent = 'Kode tidak ditemukan di jaringan lokal.';
       viewActive = false; setStatus('view', 'Gagal', false);
     } else if (['network','server-error','socket-error','socket-closed'].includes(e.type)) {
       scheduleRetry('Server pairing tidak terjangkau, mencoba lagi…');
@@ -292,6 +300,7 @@ function startView(raw) {
   });
   peer.on('disconnected', () => { if (viewActive && peer && !peer.destroyed) peer.reconnect(); });
 }
+
 function startStats(pc) {
   clearInterval(statsTimer);
   statsTimer = setInterval(async () => {
@@ -305,21 +314,18 @@ function startStats(pc) {
       }
       if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) {
         if (r.currentRoundTripTime != null) rtt = 'RTT ' + Math.round(r.currentRoundTripTime * 1000) + ' ms';
-        const l = byId[r.localCandidateId], rm = byId[r.remoteCandidateId];
-        if (l && rm) {
-          const t = [l.candidateType, rm.candidateType];
-          path = t.includes('relay') ? 'Jalur: relay (via internet)' : t.every((x) => x === 'host' || x === 'prflx') ? 'Jalur: LAN langsung' : 'Jalur: internet langsung';
-        }
+        path = 'Jalur: LAN langsung (Wi-Fi Local)';
       }
     });
     $('#stats').textContent = [res, fps, rtt, path].filter(Boolean).join('  •  ');
   }, 1000);
 }
+
 $('#goView').onclick = () => startView($('#codeIn').value);
 $('#codeIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') startView($('#codeIn').value); });
 $('#codeIn').addEventListener('input', (e) => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (e.target.value.length === 5) startView(e.target.value);   // otomatis konek saat 5 karakter terisi
+  if (e.target.value.length === 5) startView(e.target.value);
 });
 $('#snd').onclick = () => {
   const v = $('#remote'); v.muted = !v.muted;
@@ -333,7 +339,7 @@ $('#snap').onclick = () => {
   const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'webcam-' + Date.now() + '.png'; a.click();
 };
 
-/* ---------- Link langsung: halaman#KODE membuka mode Pantau otomatis ---------- */
+/* ---------- Link langsung ---------- */
 const m = location.hash.replace('#', '').toUpperCase();
 if (/^[A-Z0-9]{5}$/.test(m)) { show('view'); startView(m); }
 </script>
