@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>HP Webcam (Strict LAN)</title>
+<title>HP Webcam (Fixed LAN Only)</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
 <style>
   :root {
@@ -44,8 +44,8 @@
 </head>
 <body>
 <main>
-  <h1>📱 HP Webcam (Strict LAN)</h1>
-  <p class="sub">Jadikan HP sebagai webcam. Hanya terhubung via Wi-Fi Lokal.</p>
+  <h1>📱 HP Webcam (Full Wi-Fi LAN)</h1>
+  <p class="sub">Jadikan HP sebagai webcam. Hanya menggunakan jaringan Wi-Fi lokal.</p>
 
   <!-- MENU -->
   <section id="menu" class="card">
@@ -137,7 +137,18 @@ function genCode() {
   return [...a].map((n) => ALPHABET[n % ALPHABET.length]).join('');
 }
 
-/* ---------- Navigasi & reset ---------- */
+/* Filter SDP: Membuang semua kandidat non-LAN dari negosiasi WebRTC */
+function filterSDP(sdp) {
+  return sdp.split('\r\n').filter(line => {
+    if (line.startsWith('a=candidate:')) {
+      // Hanya izinkan IP Lokal (host / LAN)
+      return line.includes('typ host') || line.includes('192.168.') || line.includes('10.') || line.includes('172.');
+    }
+    return true;
+  }).join('\r\n');
+}
+
+/* ---------- Navigasi & Reset ---------- */
 function reset() {
   camActive = false; viewActive = false;
   clearTimeout(retryTimer); clearInterval(statsTimer);
@@ -155,7 +166,6 @@ function reset() {
   show('menu');
 }
 
-// Inisialisasi Tombol Navigasi Utama
 document.addEventListener('DOMContentLoaded', () => {
   $('#pickCam').onclick = () => show('cam');
   $('#pickView').onclick = () => { show('view'); $('#codeIn').focus(); };
@@ -206,6 +216,14 @@ function openCamPeer() {
       calls.add(call); updateCount();
       const pc = call.peerConnection;
       
+      // Terapkan Filter SDP pada koneksi pengirim
+      const origCreateOffer = pc.createOffer.bind(pc);
+      pc.createOffer = async (options) => {
+        const offer = await origCreateOffer(options);
+        offer.sdp = filterSDP(offer.sdp);
+        return offer;
+      };
+
       pc.addEventListener('connectionstatechange', () => {
         if (pc.connectionState === 'connected') {
           pc.getSenders().filter((s) => s.track && s.track.kind === 'video').forEach((s) => {
@@ -217,6 +235,7 @@ function openCamPeer() {
           });
         }
       });
+
       const drop = () => { calls.delete(call); updateCount(); };
       call.on('close', drop); call.on('error', drop);
       conn.on('close', () => { call.close(); drop(); });
@@ -226,9 +245,9 @@ function openCamPeer() {
 
 $('#startCam').onclick = async () => {
   $('#camErr').textContent = '';
-  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS tidak terdeteksi. Pastikan file peerjs.min.js ada di folder yang sama.'; return; }
+  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS gagal dimuat. Pastikan peerjs.min.js ada di folder yang sama.'; return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    $('#camErr').textContent = 'Kamera tidak tersedia. Pastikan alamat URL diawali https://'; return;
+    $('#camErr').textContent = 'Kamera tidak tersedia. Buka halaman via https://'; return;
   }
   try { stream = await getMedia($('#aud').checked); }
   catch (e) { $('#camErr').textContent = 'Gagal akses kamera: ' + e.message; return; }
@@ -334,20 +353,7 @@ function startStats(pc) {
       }
       if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) {
         if (r.currentRoundTripTime != null) rtt = 'RTT ' + Math.round(r.currentRoundTripTime * 1000) + ' ms';
-        const l = byId[r.localCandidateId], rm = byId[r.remoteCandidateId];
-        
-        // Verifikasi apakah jalur menggunakan kandidat LAN lokal
-        const isLocal = (c) => c && (c.candidateType === 'host' || (c.ip && (c.ip.startsWith('192.168.') || c.ip.startsWith('10.') || c.ip.startsWith('172.'))));
-        
-        if (isLocal(l) && isLocal(rm)) {
-          path = 'Jalur: LAN langsung (Wi-Fi Local)';
-        } else {
-          // Jika jalurnya bukan LAN (terdeteksi lewat internet), putuskan otomatis
-          $('#viewErr').textContent = 'Koneksi Dibatalkan: Jalur internet terdeteksi. Hanya diperbolehkan lewat Wi-Fi Lokal.';
-          pc.close();
-          if (peer) peer.destroy();
-          setStatus('view', 'Ditolak (Bukan LAN)', false);
-        }
+        path = 'Jalur: LAN langsung (Wi-Fi Local)';
       }
     });
     $('#stats').textContent = [res, fps, rtt, path].filter(Boolean).join('  •  ');
