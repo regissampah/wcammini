@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>HP Webcam (Full LAN)</title>
+<title>HP Webcam</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
 <style>
   :root {
@@ -44,7 +44,7 @@
 </head>
 <body>
 <main>
-  <h1>📱 HP Webcam (LAN)</h1>
+  <h1>📱 HP Webcam</h1>
   <p class="sub">Jadikan HP sebagai webcam. Cukup masukkan kode 5 karakter untuk memantau di browser lain.</p>
 
   <!-- MENU -->
@@ -114,10 +114,13 @@ const PREFIX = 'hpcam-';
 const RES = { '480':[640,480], '720':[1280,720], '1080':[1920,1080] };
 const BITRATE = { '480':1500000, '720':3500000, '1080':7000000 };
 
-// Konfigurasi khusus: Mengosongkan STUN/TURN publik agar dipaksa lewat IP Lokal (Wi-Fi)
+// Konfigurasi STUN lokal-friendly untuk menembus mDNS browser
 const LAN_PEER_CONFIG = {
   config: {
-    iceServers: [], // Kosongkan STUN server luar agar tidak mencari jalur internet/relay
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ],
     iceTransportPolicy: 'all'
   }
 };
@@ -164,7 +167,7 @@ function getMedia(audio) {
 }
 function updateCount() {
   const n = calls.size;
-  setStatus('cam', n ? `Streaming ke ${n} penonton (LAN)` : 'Menunggu penonton…', n > 0);
+  setStatus('cam', n ? `Streaming ke ${n} penonton` : 'Menunggu penonton…', n > 0);
 }
 function openCamPeer() {
   const code = genCode();
@@ -178,7 +181,7 @@ function openCamPeer() {
   peer.on('error', (e) => {
     if (e.type === 'unavailable-id') { peer.destroy(); openCamPeer(); return; }
     if (['network','server-error','socket-error','socket-closed'].includes(e.type))
-      $('#camErr').textContent = 'Tidak bisa menghubungi server pairing.';
+      $('#camErr').textContent = 'Tidak bisa menghubungi server pairing. Cek koneksi internet.';
     else $('#camErr').textContent = 'Error: ' + e.type;
   });
   peer.on('disconnected', () => {
@@ -282,7 +285,7 @@ function startView(raw) {
       const v = $('#remote');
       if (v.srcObject !== s) v.srcObject = s;
       $('#overlay').hidden = true;
-      setStatus('view', 'Live (LAN Direct)', true);
+      setStatus('view', 'Live', true);
       call.peerConnection.getReceivers().forEach((r) => {
         try { r.jitterBufferTarget = 0; } catch {}
         try { r.playoutDelayHint = 0; } catch {}
@@ -292,7 +295,7 @@ function startView(raw) {
   });
   peer.on('error', (e) => {
     if (e.type === 'peer-unavailable') {
-      $('#viewErr').textContent = 'Kode tidak ditemukan di jaringan lokal.';
+      $('#viewErr').textContent = 'Kode tidak ditemukan. Pastikan kode benar dan webcam sudah aktif.';
       viewActive = false; setStatus('view', 'Gagal', false);
     } else if (['network','server-error','socket-error','socket-closed'].includes(e.type)) {
       scheduleRetry('Server pairing tidak terjangkau, mencoba lagi…');
@@ -314,7 +317,11 @@ function startStats(pc) {
       }
       if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) {
         if (r.currentRoundTripTime != null) rtt = 'RTT ' + Math.round(r.currentRoundTripTime * 1000) + ' ms';
-        path = 'Jalur: LAN langsung (Wi-Fi Local)';
+        const l = byId[r.localCandidateId], rm = byId[r.remoteCandidateId];
+        if (l && rm) {
+          const t = [l.candidateType, rm.candidateType];
+          path = t.includes('relay') ? 'Jalur: relay (via internet)' : t.every((x) => x === 'host' || x === 'prflx') ? 'Jalur: LAN langsung' : 'Jalur: internet langsung';
+        }
       }
     });
     $('#stats').textContent = [res, fps, rtt, path].filter(Boolean).join('  •  ');
