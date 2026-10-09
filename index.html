@@ -106,7 +106,8 @@
   </section>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<!-- Menggunakan file lokal di folder yang sama -->
+<script src="peerjs.min.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // tanpa I, O, 0, 1 agar tidak membingungkan
@@ -202,7 +203,7 @@ function openCamPeer() {
 }
 $('#startCam').onclick = async () => {
   $('#camErr').textContent = '';
-  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS gagal dimuat. Cek koneksi internet lalu muat ulang.'; return; }
+  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS gagal dimuat. Pastikan file peerjs.min.js ada di folder yang sama.'; return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('#camErr').textContent = 'Kamera tidak tersedia. Buka halaman lewat https://.'; return;
   }
@@ -253,7 +254,7 @@ function startView(raw) {
   $('#viewErr').textContent = '';
   const code = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 5) { $('#viewErr').textContent = 'Kode harus 5 karakter.'; return; }
-  if (!window.Peer) { $('#viewErr').textContent = 'Library PeerJS gagal dimuat. Cek koneksi internet lalu muat ulang.'; return; }
+  if (!window.Peer) { $('#viewErr').textContent = 'Library PeerJS gagal dimuat. Pastikan file peerjs.min.js ada di folder yang sama.'; return; }
   viewCode = code; viewActive = true;
   $('#codeIn').value = code;
   stopViewerPeer();
