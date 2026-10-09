@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>HP Webcam (Strict LAN Only)</title>
+<title>HP Webcam (Strict LAN)</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
 <style>
   :root {
@@ -44,8 +44,8 @@
 </head>
 <body>
 <main>
-  <h1>📱 HP Webcam (Khusus Wi-Fi Lokal)</h1>
-  <p class="sub">Hanya dapat terhubung dalam jaringan Wi-Fi lokal yang sama.</p>
+  <h1>📱 HP Webcam (Strict LAN)</h1>
+  <p class="sub">Jadikan HP sebagai webcam. Hanya terhubung via Wi-Fi Lokal.</p>
 
   <!-- MENU -->
   <section id="menu" class="card">
@@ -114,20 +114,24 @@ const PREFIX = 'hpcam-';
 const RES = { '480':[640,480], '720':[1280,720], '1080':[1920,1080] };
 const BITRATE = { '480':1500000, '720':3500000, '1080':7000000 };
 
-// Konfigurasi PeerJS tanpa STUN server publik
-const STRICT_LAN_CONFIG = {
-  config: {
-    iceServers: [], // Kosongkan STUN agar WebRTC tidak mencari IP Publik Internet
-    iceTransportPolicy: 'all'
-  }
-};
-
 let peer = null, stream = null, wakeLock = null, facing = 'environment';
 let camActive = false, viewActive = false, viewCode = '', retryTimer = null, statsTimer = null, currentCall = null;
 const calls = new Set();
 
-function setStatus(who, text, on) { $('#' + who + 'Status').textContent = text; $('#' + who + 'Dot').classList.toggle('on', !!on); }
-function show(id) { ['menu','cam','view'].forEach((s) => ($('#' + s).hidden = s !== id)); }
+function setStatus(who, text, on) { 
+  const el = $('#' + who + 'Status');
+  const dot = $('#' + who + 'Dot');
+  if (el) el.textContent = text;
+  if (dot) dot.classList.toggle('on', !!on);
+}
+
+function show(id) { 
+  ['menu','cam','view'].forEach((s) => {
+    const el = $('#' + s);
+    if (el) el.hidden = (s !== id);
+  });
+}
+
 function genCode() {
   const a = new Uint32Array(5); crypto.getRandomValues(a);
   return [...a].map((n) => ALPHABET[n % ALPHABET.length]).join('');
@@ -150,9 +154,13 @@ function reset() {
   history.replaceState(null, '', location.pathname + location.search);
   show('menu');
 }
-$('#pickCam').onclick = () => show('cam');
-$('#pickView').onclick = () => { show('view'); $('#codeIn').focus(); };
-document.querySelectorAll('[data-back]').forEach((b) => (b.onclick = reset));
+
+// Inisialisasi Tombol Navigasi Utama
+document.addEventListener('DOMContentLoaded', () => {
+  $('#pickCam').onclick = () => show('cam');
+  $('#pickView').onclick = () => { show('view'); $('#codeIn').focus(); };
+  document.querySelectorAll('[data-back]').forEach((b) => (b.onclick = reset));
+});
 
 /* ---------- WEBCAM ---------- */
 function getMedia(audio) {
@@ -162,13 +170,15 @@ function getMedia(audio) {
     audio,
   });
 }
+
 function updateCount() {
   const n = calls.size;
   setStatus('cam', n ? `Streaming ke ${n} penonton (LAN)` : 'Menunggu penonton LAN…', n > 0);
 }
+
 function openCamPeer() {
   const code = genCode();
-  peer = new Peer(PREFIX + code, STRICT_LAN_CONFIG);
+  peer = new Peer(PREFIX + code);
   
   peer.on('open', () => {
     $('#codeShow').textContent = code;
@@ -176,17 +186,20 @@ function openCamPeer() {
     history.replaceState(null, '', '#' + code);
     updateCount();
   });
+
   peer.on('error', (e) => {
     if (e.type === 'unavailable-id') { peer.destroy(); openCamPeer(); return; }
     if (['network','server-error','socket-error','socket-closed'].includes(e.type))
       $('#camErr').textContent = 'Tidak bisa terhubung ke server signaling.';
     else $('#camErr').textContent = 'Error: ' + e.type;
   });
+
   peer.on('disconnected', () => {
     if (!camActive) return;
     setStatus('cam', 'Menyambung ulang…', false);
     setTimeout(() => { if (camActive && peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 1500);
   });
+
   peer.on('connection', (conn) => {
     conn.on('open', () => {
       const call = peer.call(conn.peer, stream);
@@ -210,11 +223,12 @@ function openCamPeer() {
     });
   });
 }
+
 $('#startCam').onclick = async () => {
   $('#camErr').textContent = '';
-  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS gagal dimuat. Pastikan file peerjs.min.js ada.'; return; }
+  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS tidak terdeteksi. Pastikan file peerjs.min.js ada di folder yang sama.'; return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    $('#camErr').textContent = 'Kamera tidak tersedia. Buka halaman lewat https://.'; return;
+    $('#camErr').textContent = 'Kamera tidak tersedia. Pastikan alamat URL diawali https://'; return;
   }
   try { stream = await getMedia($('#aud').checked); }
   catch (e) { $('#camErr').textContent = 'Gagal akses kamera: ' + e.message; return; }
@@ -224,11 +238,13 @@ $('#startCam').onclick = async () => {
   setStatus('cam', 'Membuat kode…', false);
   openCamPeer();
 };
+
 $('#copyLink').onclick = async () => {
   const link = location.href.split('#')[0] + '#' + $('#codeShow').textContent;
   try { await navigator.clipboard.writeText(link); } catch {}
   const b = $('#copyLink'), old = b.textContent; b.textContent = '✅ Tersalin'; setTimeout(() => (b.textContent = old), 1500);
 };
+
 $('#flip').onclick = async () => {
   facing = facing === 'environment' ? 'user' : 'environment';
   try {
@@ -243,9 +259,6 @@ $('#flip').onclick = async () => {
     $('#preview').srcObject = stream;
   } catch (e) { $('#camErr').textContent = 'Gagal ganti kamera: ' + e.message; }
 };
-document.addEventListener('visibilitychange', async () => {
-  if (camActive && document.visibilityState === 'visible') { try { wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
-});
 
 /* ---------- PANTAU ---------- */
 function stopViewerPeer() {
@@ -253,12 +266,14 @@ function stopViewerPeer() {
   if (currentCall) { currentCall.close(); currentCall = null; }
   if (peer) { peer.destroy(); peer = null; }
 }
+
 function scheduleRetry(msg) {
   if (!viewActive) return;
   setStatus('view', msg, false);
   clearTimeout(retryTimer);
   retryTimer = setTimeout(() => viewActive && startView(viewCode), 2500);
 }
+
 function startView(raw) {
   $('#viewErr').textContent = '';
   const code = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -269,31 +284,18 @@ function startView(raw) {
   stopViewerPeer();
   setStatus('view', 'Menghubungkan ke LAN…', false);
 
-  peer = new Peer(STRICT_LAN_CONFIG);
+  peer = new Peer();
   peer.on('open', () => {
     const conn = peer.connect(PREFIX + code, { reliable: true });
     const to = setTimeout(() => { if (!conn.open) scheduleRetry('Webcam LAN tidak merespons, mencoba lagi…'); }, 10000);
     conn.on('open', () => { clearTimeout(to); setStatus('view', 'Terhubung, menunggu video…', false); });
     conn.on('close', () => { $('#overlay').hidden = false; $('#overlay').textContent = 'Webcam terputus, menyambung ulang…'; scheduleRetry('Webcam terputus, menyambung ulang…'); });
   });
+
   peer.on('call', (call) => {
     currentCall = call;
     call.answer();
     
-    // PEMAKSAAN HANYA LAN LOKAL
-    const pc = call.peerConnection;
-    let localCandidateFound = false;
-
-    // Cek setiap candidate
-    pc.addEventListener('icecandidate', (e) => {
-      if (e.candidate) {
-        const cand = e.candidate.candidate;
-        if (cand.includes('typ host') || cand.includes('192.168.') || cand.includes('10.') || cand.includes('172.')) {
-          localCandidateFound = true;
-        }
-      }
-    });
-
     call.on('stream', (s) => {
       const v = $('#remote');
       if (v.srcObject !== s) v.srcObject = s;
@@ -306,9 +308,10 @@ function startView(raw) {
       startStats(call.peerConnection);
     });
   });
+
   peer.on('error', (e) => {
     if (e.type === 'peer-unavailable') {
-      $('#viewErr').textContent = 'Kode tidak ditemukan di jaringan lokal Wi-Fi.';
+      $('#viewErr').textContent = 'Kode tidak ditemukan. Pastikan kedua HP terhubung di Wi-Fi yang sama.';
       viewActive = false; setStatus('view', 'Gagal', false);
     } else if (['network','server-error','socket-error','socket-closed'].includes(e.type)) {
       scheduleRetry('Server signaling tidak terjangkau…');
@@ -324,4 +327,54 @@ function startStats(pc) {
     const st = await pc.getStats(); let res = '', fps = '', rtt = '', path = '';
     const byId = {}; st.forEach((r) => (byId[r.id] = r));
     
-    st.forEach
+    st.forEach((r) => {
+      if (r.type === 'inbound-rtp' && r.kind === 'video') {
+        if (r.frameWidth) res = r.frameWidth + '×' + r.frameHeight;
+        if (r.framesPerSecond) fps = Math.round(r.framesPerSecond) + ' fps';
+      }
+      if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) {
+        if (r.currentRoundTripTime != null) rtt = 'RTT ' + Math.round(r.currentRoundTripTime * 1000) + ' ms';
+        const l = byId[r.localCandidateId], rm = byId[r.remoteCandidateId];
+        
+        // Verifikasi apakah jalur menggunakan kandidat LAN lokal
+        const isLocal = (c) => c && (c.candidateType === 'host' || (c.ip && (c.ip.startsWith('192.168.') || c.ip.startsWith('10.') || c.ip.startsWith('172.'))));
+        
+        if (isLocal(l) && isLocal(rm)) {
+          path = 'Jalur: LAN langsung (Wi-Fi Local)';
+        } else {
+          // Jika jalurnya bukan LAN (terdeteksi lewat internet), putuskan otomatis
+          $('#viewErr').textContent = 'Koneksi Dibatalkan: Jalur internet terdeteksi. Hanya diperbolehkan lewat Wi-Fi Lokal.';
+          pc.close();
+          if (peer) peer.destroy();
+          setStatus('view', 'Ditolak (Bukan LAN)', false);
+        }
+      }
+    });
+    $('#stats').textContent = [res, fps, rtt, path].filter(Boolean).join('  •  ');
+  }, 1000);
+}
+
+$('#goView').onclick = () => startView($('#codeIn').value);
+$('#codeIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') startView($('#codeIn').value); });
+$('#codeIn').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (e.target.value.length === 5) startView(e.target.value);
+});
+$('#snd').onclick = () => {
+  const v = $('#remote'); v.muted = !v.muted;
+  $('#snd').textContent = v.muted ? '🔇 Suara mati' : '🔊 Suara hidup';
+};
+$('#full').onclick = () => { const v = $('#remote'); (v.requestFullscreen || v.webkitRequestFullscreen).call(v); };
+$('#snap').onclick = () => {
+  const v = $('#remote'); if (!v.videoWidth) return;
+  const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'webcam-' + Date.now() + '.png'; a.click();
+};
+
+/* ---------- Link langsung ---------- */
+const m = location.hash.replace('#', '').toUpperCase();
+if (/^[A-Z0-9]{5}$/.test(m)) { show('view'); startView(m); }
+</script>
+</body>
+</html>
