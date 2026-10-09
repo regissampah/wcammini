@@ -4,24 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>HP Webcam</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
 <style>
   :root {
-    box-sizing: border-box;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
     --bg:#f5f6f8; --card:#ffffff; --line:#d9dce3; --text:#1b1e26; --muted:#667; --ac:#2f6df6; --ok:#17a468; --bad:#d93a3a; --field:#f0f2f6;
   }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --bg:#0f1115; --card:#1a1d24; --line:#2a2e38; --text:#e8eaf0; --muted:#99a; --ac:#4f8cff; --ok:#3ecf8e; --bad:#ff5d5d; --field:#12141a; }
+    :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2e38; --text:#e8eaf0; --muted:#99a; --ac:#4f8cff; --ok:#3ecf8e; --bad:#ff5d5d; --field:#12141a; }
   }
-  :root[data-theme="dark"] { --bg:#0f1115; --card:#1a1d24; --line:#2a2e38; --text:#e8eaf0; --muted:#99a; --ac:#4f8cff; --ok:#3ecf8e; --bad:#ff5d5d; --field:#12141a; }
   * { box-sizing: border-box; }
-  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
-  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
   main { max-width:640px; margin:0 auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
   h1 { font-size:22px; margin:6px 0 0; }
   p.sub { margin:0; color:var(--muted); font-size:14px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:12px; }
   .card h2 { font-size:16px; margin:0; }
   .choices { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .big { padding:22px 10px; font-size:16px; font-weight:600; display:flex; flex-direction:column; gap:6px; align-items:center; }
@@ -29,23 +25,27 @@
   button { font:inherit; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--text); cursor:pointer; }
   button.primary { background:var(--ac); border-color:var(--ac); color:#fff; font-weight:600; }
   button:disabled { opacity:.45; cursor:default; }
-  textarea { width:100%; min-height:90px; font:12px/1.3 ui-monospace,Consolas,monospace; background:var(--field); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:8px; resize:vertical; word-break:break-all; }
+  select, input { font:inherit; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--field); color:var(--text); }
   video { width:100%; background:#000; border-radius:12px; aspect-ratio:16/9; object-fit:contain; }
+  .stage { position:relative; }
+  .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; color:#aab; pointer-events:none; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  label { font-size:14px; display:flex; gap:6px; align-items:center; }
   .status { display:flex; gap:8px; align-items:center; font-size:14px; }
-  .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); flex:none; }
   .dot.on { background:var(--ok); }
   .err { color:var(--bad); font-size:14px; }
   .stats { font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .code { font:700 44px/1 ui-monospace,Consolas,monospace; letter-spacing:.18em; text-align:center; padding:14px 0 14px .18em; background:var(--field); border:1px dashed var(--line); border-radius:12px; user-select:all; }
+  .codein { font:700 28px ui-monospace,Consolas,monospace; letter-spacing:.2em; text-transform:uppercase; text-align:center; width:100%; max-width:260px; }
   .back { align-self:flex-start; }
-  label { font-size:14px; display:flex; gap:6px; align-items:center; }
   [hidden] { display:none !important; }
 </style>
 </head>
 <body>
 <main>
   <h1>📱 HP Webcam</h1>
-  <p class="sub">Tanpa server &amp; tanpa instalasi. Video langsung antar-browser di WiFi yang sama.</p>
+  <p class="sub">Jadikan HP sebagai webcam. Cukup masukkan kode 5 karakter untuk memantau di browser lain.</p>
 
   <!-- MENU -->
   <section id="menu" class="card">
@@ -54,7 +54,6 @@
       <button class="big" id="pickCam"><span>📷</span>Jadikan Webcam</button>
       <button class="big" id="pickView"><span>👁️</span>Pantau</button>
     </div>
-    <p class="sub">Browser A (HP) pilih <b>Webcam</b>. Browser B (laptop/HP lain) pilih <b>Pantau</b>.</p>
   </section>
 
   <!-- WEBCAM -->
@@ -63,24 +62,21 @@
     <h2>📷 Mode Webcam</h2>
     <video id="preview" autoplay playsinline muted></video>
 
-    <div id="camStep1">
-      <div class="row">
-        <label><input type="checkbox" id="aud"> Kirim suara</label>
-        <label>Resolusi
-          <select id="res"><option value="480">480p</option><option value="720" selected>720p</option><option value="1080">1080p</option></select>
-        </label>
-      </div>
-      <p></p>
-      <button class="primary" id="startCam">1. Aktifkan kamera &amp; buat kode</button>
+    <div id="camStep1" class="row">
+      <label>Resolusi
+        <select id="res"><option value="480">480p</option><option value="720" selected>720p</option><option value="1080">1080p</option></select>
+      </label>
+      <label><input type="checkbox" id="aud"> Kirim suara</label>
+      <button class="primary" id="startCam" style="flex:1">▶ Aktifkan kamera</button>
     </div>
 
     <div id="camStep2" hidden>
-      <b>Kode Webcam (A)</b> — salin dan masukkan di perangkat Pantau:
-      <textarea id="codeA" readonly></textarea>
-      <div class="row"><button id="copyA">📋 Salin kode A</button><button id="flip">🔄 Ganti kamera</button></div>
-      <b>Tempel Kode Jawaban (B) dari perangkat Pantau:</b>
-      <textarea id="codeBin" placeholder="Tempel kode B di sini"></textarea>
-      <button class="primary" id="connectCam">2. Sambungkan</button>
+      <p class="sub">Masukkan kode ini di perangkat <b>Pantau</b>:</p>
+      <div class="code" id="codeShow">-----</div>
+      <div class="row" style="margin-top:8px">
+        <button id="copyLink" style="flex:1">🔗 Salin link pantau</button>
+        <button id="flip">🔄 Ganti kamera</button>
+      </div>
     </div>
     <div class="status"><span class="dot" id="camDot"></span><span id="camStatus">Belum dimulai</span></div>
     <div class="err" id="camErr"></div>
@@ -90,7 +86,10 @@
   <section id="view" hidden class="card">
     <button class="back" data-back>← Kembali</button>
     <h2>👁️ Mode Pantau</h2>
-    <video id="remote" autoplay playsinline muted></video>
+    <div class="stage">
+      <video id="remote" autoplay playsinline muted></video>
+      <div class="overlay" id="overlay">Masukkan kode dari perangkat Webcam</div>
+    </div>
     <div class="row">
       <button id="snd">🔇 Suara mati</button>
       <button id="full">⛶ Layar penuh</button>
@@ -98,84 +97,53 @@
     </div>
     <div class="stats" id="stats"></div>
 
-    <div id="viewStep1">
-      <b>Tempel Kode Webcam (A):</b>
-      <textarea id="codeAin" placeholder="Tempel kode A dari perangkat Webcam"></textarea>
-      <button class="primary" id="makeAns">1. Buat kode jawaban</button>
-    </div>
-    <div id="viewStep2" hidden>
-      <b>Kode Jawaban (B)</b> — salin dan tempel di perangkat Webcam, lalu tekan “Sambungkan”:
-      <textarea id="codeB" readonly></textarea>
-      <button id="copyB">📋 Salin kode B</button>
+    <div id="viewForm" class="row">
+      <input class="codein" id="codeIn" maxlength="5" placeholder="KODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button class="primary" id="goView">Pantau</button>
     </div>
     <div class="status"><span class="dot" id="viewDot"></span><span id="viewStatus">Menunggu kode</span></div>
     <div class="err" id="viewErr"></div>
   </section>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // tanpa I, O, 0, 1 agar tidak membingungkan
+const PREFIX = 'hpcam-';
 const RES = { '480':[640,480], '720':[1280,720], '1080':[1920,1080] };
 const BITRATE = { '480':1500000, '720':3500000, '1080':7000000 };
-const RTC_CFG = { iceServers: [] };   // jaringan lokal: tidak perlu STUN/TURN
-let pc = null, stream = null, facing = 'environment', wakeLock = null, statsTimer = null;
 
-/* ---------- Kode sambungan (SDP dipadatkan jadi teks) ---------- */
-async function pack(desc) {
-  let bytes = new TextEncoder().encode(JSON.stringify({ t: desc.type, s: desc.sdp }));
-  let prefix = 'r.';
-  if ('CompressionStream' in window) {
-    const cs = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
-    bytes = new Uint8Array(await new Response(cs).arrayBuffer());
-    prefix = 'z.';
-  }
-  let bin = ''; bytes.forEach((b) => (bin += String.fromCharCode(b)));
-  return prefix + btoa(bin);
-}
-async function unpack(code) {
-  code = code.replace(/\s+/g, '');
-  const prefix = code.slice(0, 2);
-  let bytes = Uint8Array.from(atob(code.slice(2)), (c) => c.charCodeAt(0));
-  if (prefix === 'z.') {
-    const ds = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
-    bytes = new Uint8Array(await new Response(ds).arrayBuffer());
-  }
-  const o = JSON.parse(new TextDecoder().decode(bytes));
-  return { type: o.t, sdp: o.s };
-}
-function waitIce(p) {
-  return new Promise((res) => {
-    if (p.iceGatheringState === 'complete') return res();
-    const t = setTimeout(res, 3000);
-    p.addEventListener('icegatheringstatechange', () => {
-      if (p.iceGatheringState === 'complete') { clearTimeout(t); res(); }
-    });
-  });
-}
-async function copy(textarea, btn) {
-  try { await navigator.clipboard.writeText(textarea.value); }
-  catch { textarea.select(); document.execCommand('copy'); }
-  const old = btn.textContent; btn.textContent = '✅ Tersalin'; setTimeout(() => (btn.textContent = old), 1500);
-}
+let peer = null, stream = null, wakeLock = null, facing = 'environment';
+let camActive = false, viewActive = false, viewCode = '', retryTimer = null, statsTimer = null, currentCall = null;
+const calls = new Set();
 
-/* ---------- Navigasi ---------- */
+function setStatus(who, text, on) { $('#' + who + 'Status').textContent = text; $('#' + who + 'Dot').classList.toggle('on', !!on); }
 function show(id) { ['menu','cam','view'].forEach((s) => ($('#' + s).hidden = s !== id)); }
+function genCode() {
+  const a = new Uint32Array(5); crypto.getRandomValues(a);
+  return [...a].map((n) => ALPHABET[n % ALPHABET.length]).join('');
+}
+
+/* ---------- Navigasi & reset ---------- */
 function reset() {
-  if (pc) { pc.close(); pc = null; }
+  camActive = false; viewActive = false;
+  clearTimeout(retryTimer); clearInterval(statsTimer);
+  calls.forEach((c) => c.close()); calls.clear();
+  if (currentCall) { currentCall.close(); currentCall = null; }
+  if (peer) { peer.destroy(); peer = null; }
   if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
-  clearInterval(statsTimer);
   $('#preview').srcObject = null; $('#remote').srcObject = null;
   $('#camStep1').hidden = false; $('#camStep2').hidden = true;
-  $('#viewStep1').hidden = false; $('#viewStep2').hidden = true;
-  ['#codeA','#codeBin','#codeAin','#codeB'].forEach((s) => ($(s).value = ''));
+  $('#overlay').hidden = false; $('#overlay').textContent = 'Masukkan kode dari perangkat Webcam';
   ['#camErr','#viewErr','#stats'].forEach((s) => ($(s).textContent = ''));
   setStatus('cam', 'Belum dimulai', false); setStatus('view', 'Menunggu kode', false);
+  history.replaceState(null, '', location.pathname + location.search);
   show('menu');
 }
-function setStatus(who, text, on) { $('#' + who + 'Status').textContent = text; $('#' + who + 'Dot').classList.toggle('on', !!on); }
 $('#pickCam').onclick = () => show('cam');
-$('#pickView').onclick = () => show('view');
+$('#pickView').onclick = () => { show('view'); $('#codeIn').focus(); };
 document.querySelectorAll('[data-back]').forEach((b) => (b.onclick = reset));
 
 /* ---------- WEBCAM ---------- */
@@ -186,105 +154,172 @@ function getMedia(audio) {
     audio,
   });
 }
+function updateCount() {
+  const n = calls.size;
+  setStatus('cam', n ? `Streaming ke ${n} penonton` : 'Menunggu penonton…', n > 0);
+}
+function openCamPeer() {
+  const code = genCode();
+  peer = new Peer(PREFIX + code);
+  peer.on('open', () => {
+    $('#codeShow').textContent = code;
+    $('#camStep1').hidden = true; $('#camStep2').hidden = false;
+    history.replaceState(null, '', '#' + code);
+    updateCount();
+  });
+  peer.on('error', (e) => {
+    if (e.type === 'unavailable-id') { peer.destroy(); openCamPeer(); return; }   // kode bentrok → buat ulang
+    if (['network','server-error','socket-error','socket-closed'].includes(e.type))
+      $('#camErr').textContent = 'Tidak bisa menghubungi server pairing. Cek koneksi internet.';
+    else $('#camErr').textContent = 'Error: ' + e.type;
+  });
+  peer.on('disconnected', () => {
+    if (!camActive) return;
+    setStatus('cam', 'Menyambung ulang ke server…', false);
+    setTimeout(() => { if (camActive && peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 1500);
+  });
+  peer.on('connection', (conn) => {
+    conn.on('open', () => {
+      const call = peer.call(conn.peer, stream);
+      calls.add(call); updateCount();
+      const pc = call.peerConnection;
+      pc.addEventListener('connectionstatechange', () => {
+        if (pc.connectionState === 'connected') {
+          pc.getSenders().filter((s) => s.track && s.track.kind === 'video').forEach((s) => {
+            const p = s.getParameters();
+            if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+            p.encodings[0].maxBitrate = BITRATE[$('#res').value];
+            p.degradationPreference = 'maintain-framerate';
+            s.setParameters(p).catch(() => {});
+          });
+        }
+      });
+      const drop = () => { calls.delete(call); updateCount(); };
+      call.on('close', drop); call.on('error', drop);
+      conn.on('close', () => { call.close(); drop(); });
+    });
+  });
+}
 $('#startCam').onclick = async () => {
   $('#camErr').textContent = '';
+  if (!window.Peer) { $('#camErr').textContent = 'Library PeerJS gagal dimuat. Cek koneksi internet lalu muat ulang.'; return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    $('#camErr').textContent = 'Kamera tidak tersedia. Halaman harus dibuka lewat https://.'; return;
+    $('#camErr').textContent = 'Kamera tidak tersedia. Buka halaman lewat https://.'; return;
   }
   try { stream = await getMedia($('#aud').checked); }
   catch (e) { $('#camErr').textContent = 'Gagal akses kamera: ' + e.message; return; }
   $('#preview').srcObject = stream;
+  camActive = true;
   try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
-
-  pc = new RTCPeerConnection(RTC_CFG);
-  stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-  pc.onconnectionstatechange = onCamState;
-  await pc.setLocalDescription(await pc.createOffer());
   setStatus('cam', 'Membuat kode…', false);
-  await waitIce(pc);
-  $('#codeA').value = await pack(pc.localDescription);
-  $('#camStep1').hidden = true; $('#camStep2').hidden = false;
-  setStatus('cam', 'Menunggu kode B dari perangkat Pantau', false);
+  openCamPeer();
 };
-$('#copyA').onclick = () => copy($('#codeA'), $('#copyA'));
-$('#connectCam').onclick = async () => {
-  $('#camErr').textContent = '';
-  try {
-    await pc.setRemoteDescription(await unpack($('#codeBin').value));
-    setStatus('cam', 'Menyambungkan…', false);
-  } catch (e) { $('#camErr').textContent = 'Kode B tidak valid: ' + e.message; }
+$('#copyLink').onclick = async () => {
+  const link = location.href.split('#')[0] + '#' + $('#codeShow').textContent;
+  try { await navigator.clipboard.writeText(link); } catch {}
+  const b = $('#copyLink'), old = b.textContent; b.textContent = '✅ Tersalin'; setTimeout(() => (b.textContent = old), 1500);
 };
-function onCamState() {
-  const s = pc.connectionState;
-  if (s === 'connected') {
-    setStatus('cam', 'Tersambung — streaming', true);
-    const snd = pc.getSenders().find((x) => x.track && x.track.kind === 'video');
-    if (snd) {
-      const p = snd.getParameters();
-      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
-      p.encodings[0].maxBitrate = BITRATE[$('#res').value];
-      p.degradationPreference = 'maintain-framerate';
-      snd.setParameters(p).catch(() => {});
-    }
-  } else if (s === 'failed' || s === 'disconnected') setStatus('cam', 'Koneksi terputus', false);
-}
 $('#flip').onclick = async () => {
   facing = facing === 'environment' ? 'user' : 'environment';
   try {
     const ns = await getMedia(false);
     const nt = ns.getVideoTracks()[0];
-    const snd = pc.getSenders().find((x) => x.track && x.track.kind === 'video');
-    if (snd) await snd.replaceTrack(nt);
+    for (const c of calls) {
+      const s = c.peerConnection.getSenders().find((x) => x.track && x.track.kind === 'video');
+      if (s) await s.replaceTrack(nt);
+    }
     stream.getVideoTracks().forEach((t) => { t.stop(); stream.removeTrack(t); });
     stream.addTrack(nt);
     $('#preview').srcObject = stream;
   } catch (e) { $('#camErr').textContent = 'Gagal ganti kamera: ' + e.message; }
 };
+document.addEventListener('visibilitychange', async () => {
+  if (camActive && document.visibilityState === 'visible') { try { wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
+});
 
 /* ---------- PANTAU ---------- */
-$('#makeAns').onclick = async () => {
+function stopViewerPeer() {
+  clearInterval(statsTimer);
+  if (currentCall) { currentCall.close(); currentCall = null; }
+  if (peer) { peer.destroy(); peer = null; }
+}
+function scheduleRetry(msg) {
+  if (!viewActive) return;
+  setStatus('view', msg, false);
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => viewActive && startView(viewCode), 2500);
+}
+function startView(raw) {
   $('#viewErr').textContent = '';
-  try {
-    const offer = await unpack($('#codeAin').value);
-    pc = new RTCPeerConnection(RTC_CFG);
-    pc.ontrack = (e) => {
+  const code = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 5) { $('#viewErr').textContent = 'Kode harus 5 karakter.'; return; }
+  if (!window.Peer) { $('#viewErr').textContent = 'Library PeerJS gagal dimuat. Cek koneksi internet lalu muat ulang.'; return; }
+  viewCode = code; viewActive = true;
+  $('#codeIn').value = code;
+  stopViewerPeer();
+  setStatus('view', 'Menghubungkan…', false);
+
+  peer = new Peer();
+  peer.on('open', () => {
+    const conn = peer.connect(PREFIX + code, { reliable: true });
+    const to = setTimeout(() => { if (!conn.open) scheduleRetry('Webcam belum merespons, mencoba lagi…'); }, 10000);
+    conn.on('open', () => { clearTimeout(to); setStatus('view', 'Terhubung, menunggu video…', false); });
+    conn.on('close', () => { $('#overlay').hidden = false; $('#overlay').textContent = 'Webcam terputus, menyambung ulang…'; scheduleRetry('Webcam terputus, menyambung ulang…'); });
+  });
+  peer.on('call', (call) => {
+    currentCall = call;
+    call.answer();   // hanya menerima, tidak mengirim video
+    call.on('stream', (s) => {
       const v = $('#remote');
-      if (v.srcObject !== e.streams[0]) v.srcObject = e.streams[0];
-      try { e.receiver.jitterBufferTarget = 0; } catch {}   // latensi serendah mungkin
-      try { e.receiver.playoutDelayHint = 0; } catch {}
-    };
-    pc.onconnectionstatechange = () => {
-      const s = pc.connectionState;
-      if (s === 'connected') setStatus('view', 'Live', true);
-      else if (s === 'failed' || s === 'disconnected') setStatus('view', 'Koneksi terputus', false);
-    };
-    await pc.setRemoteDescription(offer);
-    await pc.setLocalDescription(await pc.createAnswer());
-    setStatus('view', 'Membuat kode jawaban…', false);
-    await waitIce(pc);
-    $('#codeB').value = await pack(pc.localDescription);
-    $('#viewStep1').hidden = true; $('#viewStep2').hidden = false;
-    setStatus('view', 'Salin kode B ke perangkat Webcam', false);
-    startStats();
-  } catch (e) { $('#viewErr').textContent = 'Kode A tidak valid: ' + e.message; }
-};
-$('#copyB').onclick = () => copy($('#codeB'), $('#copyB'));
-function startStats() {
+      if (v.srcObject !== s) v.srcObject = s;
+      $('#overlay').hidden = true;
+      setStatus('view', 'Live', true);
+      call.peerConnection.getReceivers().forEach((r) => {
+        try { r.jitterBufferTarget = 0; } catch {}      // latensi serendah mungkin
+        try { r.playoutDelayHint = 0; } catch {}
+      });
+      startStats(call.peerConnection);
+    });
+  });
+  peer.on('error', (e) => {
+    if (e.type === 'peer-unavailable') {
+      $('#viewErr').textContent = 'Kode tidak ditemukan. Pastikan kode benar dan webcam sudah aktif.';
+      viewActive = false; setStatus('view', 'Gagal', false);
+    } else if (['network','server-error','socket-error','socket-closed'].includes(e.type)) {
+      scheduleRetry('Server pairing tidak terjangkau, mencoba lagi…');
+    } else $('#viewErr').textContent = 'Error: ' + e.type;
+  });
+  peer.on('disconnected', () => { if (viewActive && peer && !peer.destroyed) peer.reconnect(); });
+}
+function startStats(pc) {
   clearInterval(statsTimer);
   statsTimer = setInterval(async () => {
-    if (!pc || pc.connectionState !== 'connected') return;
-    let res = '', fps = '', rtt = '';
-    (await pc.getStats()).forEach((r) => {
+    if (pc.connectionState !== 'connected') return;
+    const st = await pc.getStats(); let res = '', fps = '', rtt = '', path = '';
+    const byId = {}; st.forEach((r) => (byId[r.id] = r));
+    st.forEach((r) => {
       if (r.type === 'inbound-rtp' && r.kind === 'video') {
         if (r.frameWidth) res = r.frameWidth + '×' + r.frameHeight;
         if (r.framesPerSecond) fps = Math.round(r.framesPerSecond) + ' fps';
       }
-      if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.currentRoundTripTime != null)
-        rtt = 'RTT ' + Math.round(r.currentRoundTripTime * 1000) + ' ms';
+      if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) {
+        if (r.currentRoundTripTime != null) rtt = 'RTT ' + Math.round(r.currentRoundTripTime * 1000) + ' ms';
+        const l = byId[r.localCandidateId], rm = byId[r.remoteCandidateId];
+        if (l && rm) {
+          const t = [l.candidateType, rm.candidateType];
+          path = t.includes('relay') ? 'Jalur: relay (via internet)' : t.every((x) => x === 'host' || x === 'prflx') ? 'Jalur: LAN langsung' : 'Jalur: internet langsung';
+        }
+      }
     });
-    $('#stats').textContent = [res, fps, rtt].filter(Boolean).join('  •  ');
+    $('#stats').textContent = [res, fps, rtt, path].filter(Boolean).join('  •  ');
   }, 1000);
 }
+$('#goView').onclick = () => startView($('#codeIn').value);
+$('#codeIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') startView($('#codeIn').value); });
+$('#codeIn').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (e.target.value.length === 5) startView(e.target.value);   // otomatis konek saat 5 karakter terisi
+});
 $('#snd').onclick = () => {
   const v = $('#remote'); v.muted = !v.muted;
   $('#snd').textContent = v.muted ? '🔇 Suara mati' : '🔊 Suara hidup';
@@ -296,6 +331,10 @@ $('#snap').onclick = () => {
   c.getContext('2d').drawImage(v, 0, 0);
   const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'webcam-' + Date.now() + '.png'; a.click();
 };
+
+/* ---------- Link langsung: halaman#KODE membuka mode Pantau otomatis ---------- */
+const m = location.hash.replace('#', '').toUpperCase();
+if (/^[A-Z0-9]{5}$/.test(m)) { show('view'); startView(m); }
 </script>
 </body>
 </html>
